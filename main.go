@@ -19,8 +19,20 @@ type convertedData struct {
 	timestamps map[string]time.Time
 }
 
+func getTimeFrameWidthFromData[T any](data []T) time.Duration {
+	row1 := reflect.ValueOf(data[len(data)-2]).FieldByName("Timestamp").Interface().(time.Time)
+	row2 := reflect.ValueOf(data[len(data)-1]).FieldByName("Timestamp").Interface().(time.Time)
+
+	return row2.Sub(row1)
+}
+
+func WatthoursToWatt(watthours float64, timeframe time.Duration) float64 {
+	return watthours / timeframe.Hours()
+}
+
 // this takes the arrays of structs from smard-go, finds the latest value for each column and returns them as a map
 func convertDataToLatestRowMap[T any](data []T) convertedData {
+	timeframeWidth := getTimeFrameWidthFromData(data)
 	latestValues := make(map[string]int)
 	latestTimestamps := make(map[string]time.Time)
 
@@ -39,7 +51,8 @@ func convertDataToLatestRowMap[T any](data []T) convertedData {
 			val := v.Field(i).Interface().(int)
 
 			if val != -1 {
-				latestValues[name] = val
+				latestValues[name] = int(WatthoursToWatt(float64(val), timeframeWidth))
+				fmt.Printf("Wh: %v; W: %v\n", val, latestValues[name])
 				latestTimestamps[name] = rowTimestamp
 			}
 		}
